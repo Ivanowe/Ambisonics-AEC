@@ -352,7 +352,8 @@ class Model(object):
                 sph = sph[0].cpu().numpy()
                 sph_est = sph_est[0].cpu().numpy()
                 sph_idl = sph_idl[0].cpu().numpy()
-                mix, sph, sph_est, sph_idl = wavNormalize(mix, sph, sph_est, sph_idl)
+                # do not normalize!
+                # mix, sph, sph_est, sph_idl = wavNormalize(mix, sph, sph_est, sph_idl)
                 sf.write(os.path.join(est_subdir, '{}_mix.wav'.format(k)), mix, self.sample_rate)
                 sf.write(os.path.join(est_subdir, '{}_sph.wav'.format(k)), sph, self.sample_rate)
                 sf.write(os.path.join(est_subdir, '{}_sph_est.wav'.format(k)), sph_est, self.sample_rate)
