@@ -14,22 +14,31 @@ class STFT(nn.Module):
         self.n_overlap = self.win_size // self.hop_size
         self.requires_grad = requires_grad
         
-        # Hamming window? Should be Hann window imo!   
+        # Hamming window default? Should be Hann window imo!   
         win = torch.from_numpy(scipy.hann(self.win_size).astype(np.float32))
+        
+        # This part is strange. Why is the window being passed through ReLU?
+        # Training the window? What is the purpose of this? Default is not to
+        # train the window.
         win = F.relu(win)
         win = nn.Parameter(data=win, requires_grad=self.requires_grad)
         self.register_parameter('win', win)
-
+        
+        # Fourier basis help to compute the STFT by matrix multiplication with
+        # the windowed signal.
         fourier_basis = np.fft.fft(np.eye(self.win_size))
         fourier_basis_r = np.real(fourier_basis).astype(np.float32)
         fourier_basis_i = np.imag(fourier_basis).astype(np.float32)
-
+        
+        # Real and imaginary parts of the Fourier basis and indeces of the bins
+        # saved as buffers -> not trained
         self.register_buffer('fourier_basis_r', torch.from_numpy(fourier_basis_r))
         self.register_buffer('fourier_basis_i', torch.from_numpy(fourier_basis_i))
 
         idx = torch.tensor(range(self.win_size//2-1, 0, -1), dtype=torch.long)
         self.register_buffer('idx', idx)
-
+        
+        # "epsilon" -- smallest non-zero value of the data type
         self.eps = torch.finfo(torch.float32).eps
 
     def kernel_fw(self):
@@ -57,6 +66,7 @@ class STFT(nn.Module):
 
         return window
 
+    # modify to take multiple channels?
     def stft(self, sig):
         batch_size = sig.shape[0]
         n_samples = sig.shape[1]
@@ -77,7 +87,8 @@ class STFT(nn.Module):
                           padding=self.win_size-self.hop_size)
         spec_r = spec_r.transpose(-1, -2).contiguous()
         spec_i = spec_i.transpose(-1, -2).contiguous()
-
+        
+        # why is this calculated here?
         mag = torch.sqrt(spec_r**2 + spec_i**2)
         pha = torch.atan2(spec_i.data, spec_r.data)
 
@@ -111,6 +122,7 @@ class STFT(nn.Module):
         sig = sig.squeeze(dim=1)
 
         window = self.window(n_frames)
+        # + self.eps (smallest nonzero value) to avoid division by zero
         sig = sig / (window + self.eps)
 
         return sig
