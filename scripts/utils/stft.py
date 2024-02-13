@@ -13,8 +13,9 @@ class STFT(nn.Module):
         self.hop_size = hop_size
         self.n_overlap = self.win_size // self.hop_size
         self.requires_grad = requires_grad
-
-        win = torch.from_numpy(scipy.hamming(self.win_size).astype(np.float32))
+        
+        # Hamming window? Should be Hann window imo!   
+        win = torch.from_numpy(scipy.hann(self.win_size).astype(np.float32))
         win = F.relu(win)
         win = nn.Parameter(data=win, requires_grad=self.requires_grad)
         self.register_parameter('win', win)
@@ -82,6 +83,8 @@ class STFT(nn.Module):
 
         return spec_r, spec_i
 
+    # since only one final output is desired, this function pobably does'nt need
+    # to be modified
     def istft(self, x):
         spec_r = x[:,0,:,:]
         spec_i = x[:,1,:,:]
