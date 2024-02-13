@@ -135,6 +135,9 @@ class Net(nn.Module):
 
     def forward(self, x):
         
+        # shape of x not defined here but in the __init__.
+        # because I modified it to take 5 channels, I need to make sure that
+        # x has 10 channels (5 for real and 5 for imaginary parts of the STFT) 
         out = x
         e1 = self.elu(self.bn1(self.conv1(out)))
         e2 = self.elu(self.bn2(self.conv2(e1)))
