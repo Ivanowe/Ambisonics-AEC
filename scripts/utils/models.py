@@ -10,7 +10,7 @@ from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader
 from torch.optim import Adam, lr_scheduler
 
-from configs import exp_conf
+from configs import amb_aec_conf as conf
 from utils.utils import getLogger, numParams, countFrames, lossMask, lossLog, wavNormalize
 from utils.pipeline_modules import NetFeeder, Resynthesizer
 from utils.data_utils import AudioLoader
@@ -40,11 +40,13 @@ class CheckPoint(object):
 
 class Model(object):
     def __init__(self):
-        self.in_norm = exp_conf['in_norm']
-        self.sample_rate = exp_conf['sample_rate']
-        self.win_len = exp_conf['win_len']
-        self.hop_len = exp_conf['hop_len']
+        self.in_norm = conf['in_norm']
+        self.sample_rate = conf['sample_rate']
+        self.win_len = conf['win_len']
+        self.hop_len = conf['hop_len']
+        self.num_channels = conf['num_channels']
 
+        # window size and hop size for the STFT (NetFeeder)
         self.win_size = int(self.win_len * self.sample_rate)
         self.hop_size = int(self.hop_len * self.sample_rate)
         
@@ -109,6 +111,7 @@ class Model(object):
 
         # training criterion and optimizer
         criterion = LossFunction()
+        # same as paper already
         optimizer = Adam(net.parameters(), lr=self.lr, amsgrad=True)
         scheduler = lr_scheduler.StepLR(optimizer, step_size=self.lr_decay_period, gamma=self.lr_decay_factor)
         
@@ -157,6 +160,7 @@ class Model(object):
                 start_time = timeit.default_timer()
                 
                 # prepare features and labels
+                # 
                 feat, lbl = feeder(mix, sph)
                 loss_mask = lossMask(shape=lbl.shape, n_frames=n_frames, device=self.device)
                 # forward + backward + optimize
