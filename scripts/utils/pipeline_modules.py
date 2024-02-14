@@ -10,14 +10,28 @@ class NetFeeder(object):
         # Return STFT object to device
         self.stft = STFT(win_size, hop_size).to(device)
 
-    # Feed the spectra of input mixture and speech signals to the network.
-    # I should probably modify this part to enable multi-channel input.
+    # Now supports multi-channel input and output
     def __call__(self, mix, sph):
-        real_mix, imag_mix = self.stft.stft(mix)
-        feat = torch.stack([real_mix, imag_mix], dim=1)
+        # Initialize lists to store the "features" (stft of mix) and 
+        # "labels" (stft of sph)
+        feat_list = []
+        lbl_list = []
+
+        # Iterate for each channel in the input mixture and target speech each
+        # TODO: Look into parallelizing these loops eventually
         
-        real_sph, imag_sph = self.stft.stft(sph)
-        lbl = torch.stack([real_sph, imag_sph], dim=1)
+        for i in range(mix.shape[1]):  
+            real_mix, imag_mix = self.stft.stft(mix[:, i])
+            feat = torch.stack([real_mix, imag_mix], dim=1)
+            feat_list.append(feat)
+
+        for i in range(sph.shape[1]):
+            real_sph, imag_sph = self.stft.stft(sph[:, i])
+            lbl = torch.stack([real_sph, imag_sph], dim=1)
+            lbl_list.append(lbl)
+
+        feat = torch.stack(feat_list, dim=1)
+        lbl = torch.stack(lbl_list, dim=1)
 
         return feat, lbl
 
@@ -28,8 +42,18 @@ class Resynthesizer(object):
         self.stft = STFT(win_size, hop_size).to(device)
 
     # Create audio samples from estimated spectrum
+    # Multichannel support implemented for future-proofing
     def __call__(self, est, mix):
-        sph_est = self.stft.istft(est)
-        sph_est = F.pad(sph_est, [0, mix.shape[1]-sph_est.shape[1]])
+        
+        sph_est_list = []
+        # Iterate for each channel in the estimated speech
+        # TODO: Look into parallelizing these loops eventually
+        
+        for i in range(est.shape[1]):  
+            sph_est = self.stft.istft(est)
+            sph_est = F.pad(sph_est, [0, mix.shape[1]-sph_est.shape[1]])
+            sph_est_list.append(sph_est)
+        
+        sph_est = torch.stack(sph_est_list, dim=1)
 
         return sph_est
