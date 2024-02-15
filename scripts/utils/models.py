@@ -44,8 +44,9 @@ class Model(object):
         self.sample_rate = conf['sample_rate']
         self.win_len = conf['win_len']
         self.hop_len = conf['hop_len']
-        self.num_channels = conf['num_channels']
-
+        self.n_in_channels = conf['n_in_channels']
+        self.n_out_channels = conf['n_out_channels']
+        
         # window size and hop size for the STFT (NetFeeder)
         self.win_size = int(self.win_len * self.sample_rate)
         self.hop_size = int(self.hop_len * self.sample_rate)
@@ -160,7 +161,8 @@ class Model(object):
                 start_time = timeit.default_timer()
                 
                 # prepare features and labels
-                # 
+                # make sure that feeder returns feat for every channel 
+                # -> feeder needs to be modified 
                 feat, lbl = feeder(mix, sph)
                 loss_mask = lossMask(shape=lbl.shape, n_frames=n_frames, device=self.device)
                 # forward + backward + optimize
