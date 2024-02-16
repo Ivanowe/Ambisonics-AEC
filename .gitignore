@@ -1,0 +1,4 @@
+*.hdf5
+*.txt
+*.pyc
+*.DS_Store
