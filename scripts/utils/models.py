@@ -90,6 +90,7 @@ class Model(object):
                                 self.segment_size, self.segment_shift,
                                 self.batch_size, self.buffer_size,
                                 self.in_norm, mode='train')
+        
         cv_loader = AudioLoader(self.cv_file, self.sample_rate, unit='utt',
                                 segment_size=None, segment_shift=None,
                                 batch_size=1, buffer_size=10,
@@ -169,7 +170,8 @@ class Model(object):
                 optimizer.zero_grad()
                 with torch.enable_grad():
                     est = net(feat)
-                loss = criterion(est, lbl, loss_mask, n_frames)
+                #loss = criterion(est, lbl, loss_mask, n_frames)
+                loss = criterion(est, lbl, loss_mask, self.n_out_channels)
                 loss.backward()
                 if self.clip_norm >= 0.0:
                     clip_grad_norm_(net.parameters(), self.clip_norm)
@@ -261,7 +263,8 @@ class Model(object):
             with torch.no_grad():
                 loss_mask = lossMask(shape=lbl.shape, n_frames=n_frames, device=self.device)
                 est = net(feat)
-                loss = criterion(est, lbl, loss_mask, n_frames)
+                # old version kept for reference
+                loss = criterion(est, lbl, loss_mask, self.n_out_channels)
 
             accu_cv_loss += loss.data.item() * sum(n_frames)
             accu_n_frames += sum(n_frames)
@@ -345,7 +348,9 @@ class Model(object):
                 with torch.no_grad():
                     loss_mask = lossMask(shape=lbl.shape, n_frames=n_frames, device=self.device)
                     est = net(feat)
-                    loss = criterion(est, lbl, loss_mask, n_frames)
+                    # old version kept for reference
+                    # loss = criterion(est, lbl, loss_mask, n_frames)
+                    loss = criterion(est, lbl, loss_mask, self.n_out_channels)
 
                 accu_tt_loss += loss.data.item() * sum(n_frames)
                 accu_n_frames += sum(n_frames)

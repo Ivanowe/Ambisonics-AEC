@@ -1,8 +1,6 @@
 import torch
 import numpy as np
 
-
-
 class LossFunction(object):
     # old version kept for reference
     # def __call__(self, est, lbl, loss_mask, n_frames):
@@ -15,7 +13,7 @@ class LossFunction(object):
         
     #     return loss
     
-     def __call__(self, est, lbl, loss_mask, n_out_channels):
+    def __call__(self, est, lbl, loss_mask, n_out_channels):
         est *= loss_mask
         lbl *= loss_mask
         
@@ -30,8 +28,6 @@ class LossFunction(object):
         
         loss = (0.5 * torch.sum(np.absolute(est_real) - np.absolute(lbl_real))**2 
                 + 0.5 * torch.sum((np.absolute(est_imag) - np.absolute(lbl_imag))**2))
- 
-        
-        
+            
         return loss
 
