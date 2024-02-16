@@ -89,27 +89,32 @@ class Net(nn.Module):
         super(Net, self).__init__()
         
         # changed input from single channel to 5 channels
+        # TODO: make input channels a parameter
+        # Encoder for both real and imaginary parts
         self.conv1 = GluConv2d(in_channels=10, out_channels=16, kernel_size=(1,3), stride=(1,2))
         self.conv2 = GluConv2d(in_channels=16, out_channels=32, kernel_size=(1,3), stride=(1,2))
         self.conv3 = GluConv2d(in_channels=32, out_channels=64, kernel_size=(1,3), stride=(1,2))
         self.conv4 = GluConv2d(in_channels=64, out_channels=128, kernel_size=(1,3), stride=(1,2))
         self.conv5 = GluConv2d(in_channels=128, out_channels=256, kernel_size=(1,3), stride=(1,2))
         
-        # grouping 
+        # Long short-term memory layer between encoder and decoder 
         self.glstm = GLSTM(groups=2)
 
+        # Decoder for real part 
         self.conv5_t_1 = GluConvTranspose2d(in_channels=512, out_channels=128, kernel_size=(1,3), stride=(1,2))
         self.conv4_t_1 = GluConvTranspose2d(in_channels=256, out_channels=64, kernel_size=(1,3), stride=(1,2))
         self.conv3_t_1 = GluConvTranspose2d(in_channels=128, out_channels=32, kernel_size=(1,3), stride=(1,2))
         self.conv2_t_1 = GluConvTranspose2d(in_channels=64, out_channels=16, kernel_size=(1,3), stride=(1,2), output_padding=(0,1))
         self.conv1_t_1 = GluConvTranspose2d(in_channels=32, out_channels=1, kernel_size=(1,3), stride=(1,2))
         
+        # Decoder for imaginary part 
         self.conv5_t_2 = GluConvTranspose2d(in_channels=512, out_channels=128, kernel_size=(1,3), stride=(1,2))
         self.conv4_t_2 = GluConvTranspose2d(in_channels=256, out_channels=64, kernel_size=(1,3), stride=(1,2))
         self.conv3_t_2 = GluConvTranspose2d(in_channels=128, out_channels=32, kernel_size=(1,3), stride=(1,2))
         self.conv2_t_2 = GluConvTranspose2d(in_channels=64, out_channels=16, kernel_size=(1,3), stride=(1,2), output_padding=(0,1))
         self.conv1_t_2 = GluConvTranspose2d(in_channels=32, out_channels=1, kernel_size=(1,3), stride=(1,2))
         
+        # Batch normalization after each layer
         self.bn1 = nn.BatchNorm2d(16)
         self.bn2 = nn.BatchNorm2d(32)
         self.bn3 = nn.BatchNorm2d(64)
@@ -130,6 +135,7 @@ class Net(nn.Module):
 
         self.elu = nn.ELU(inplace=True)
         
+        # Linear layers for output
         self.fc1 = nn.Linear(in_features=161, out_features=161)
         self.fc2 = nn.Linear(in_features=161, out_features=161)
 
