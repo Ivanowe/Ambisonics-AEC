@@ -16,9 +16,10 @@ class WavReader(object):
         if self.mode == 'train':
             self.wav_dict = {i: wavfile for i, wavfile in enumerate(in_file)}
         else:
-            reader = h5py.File(in_file, 'r')
-            self.wav_dict = {i: str(i) for i in range(len(reader))}
+            with h5py.File(in_file, 'r') as reader:
+                self.wav_dict = {i: key for i, key in enumerate(reader.keys())}
             reader.close()
+            
         self.wav_indices = sorted(list(self.wav_dict.keys()))
 
     def load(self, idx):
