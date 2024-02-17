@@ -20,18 +20,18 @@ class NetFeeder(object):
         # Iterate for each channel in the input mixture and target speech each
         # TODO: Look into parallelizing these loops eventually
         
-        for i in range(mix.shape[1]):  
-            real_mix, imag_mix = self.stft.stft(mix[:, i])
-            feat = torch.stack([real_mix, imag_mix], dim=1)
+        for i in range(mix.shape[0]):  
+            real_mix, imag_mix = self.stft.stft(mix[i, :])
+            feat = torch.cat([real_mix, imag_mix], dim=0)
             feat_list.append(feat)
 
-        for i in range(sph.shape[1]):
-            real_sph, imag_sph = self.stft.stft(sph[:, i])
-            lbl = torch.stack([real_sph, imag_sph], dim=1)
+        for i in range(sph.shape[0]):
+            real_sph, imag_sph = self.stft.stft(sph[i, :])
+            lbl = torch.cat([real_sph, imag_sph], dim=0)
             lbl_list.append(lbl)
 
-        feat = torch.stack(feat_list, dim=1)
-        lbl = torch.stack(lbl_list, dim=1)
+        feat = torch.stack(feat_list, dim=0)
+        lbl = torch.stack(lbl_list, dim=0)
 
         return feat, lbl
 
@@ -49,9 +49,9 @@ class Resynthesizer(object):
         # Iterate for each channel in the estimated speech
         # TODO: Look into parallelizing these loops eventually
         
-        for i in range(est.shape[1]):  
+        for i in range(est.shape[0]):  
             sph_est = self.stft.istft(est)
-            sph_est = F.pad(sph_est, [0, mix.shape[1]-sph_est.shape[1]])
+            sph_est = F.pad(sph_est, [0, mix.shape[0]-sph_est.shape[0]])
             sph_est_list.append(sph_est)
         
         sph_est = torch.stack(sph_est_list, dim=1)
