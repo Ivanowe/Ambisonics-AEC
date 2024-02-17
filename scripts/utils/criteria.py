@@ -13,11 +13,9 @@ class LossFunction(object):
         
     #     return loss
     
-    def __call__(self, est, lbl, loss_mask, n_frames, n_out_channels):
-       # est *= loss_mask
-       # lbl *= loss_mask
-        
-        n_feats = est.shape[-1]
+    def __call__(self, est, lbl, loss_mask, n_out_channels):
+        est *= loss_mask
+        lbl *= loss_mask
         
         # output channels are interleaved real and imaginary parts of the 
         # spectrum. The real part is therefore at even indeces and the imaginary 

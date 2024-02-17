@@ -172,7 +172,7 @@ class Model(object):
                 with torch.enable_grad():
                     est = net(feat)
                 #loss = criterion(est, lbl, loss_mask, n_frames)
-                loss = criterion(est, lbl, loss_mask, n_frames, self.n_out_channels)
+                loss = criterion(est, lbl, loss_mask, self.n_out_channels)
                 loss.backward()
                 if self.clip_norm >= 0.0:
                     clip_grad_norm_(net.parameters(), self.clip_norm)
@@ -266,7 +266,7 @@ class Model(object):
                 est = net(feat)
                 # old version kept for reference
                 # loss = criterion(est, lbl, loss_mask, n_frames)
-                loss = criterion(est, lbl, loss_mask, n_frames, self.n_out_channels)
+                loss = criterion(est, lbl, loss_mask, self.n_out_channels)
 
             accu_cv_loss += loss.data.item() * sum(n_frames)
             accu_n_frames += sum(n_frames)
@@ -352,7 +352,7 @@ class Model(object):
                     est = net(feat)
                     # old version kept for reference
                     # loss = criterion(est, lbl, loss_mask, n_frames)
-                    loss = criterion(est, lbl, loss_mask, n_frames, self.n_out_channels)
+                    loss = criterion(est, lbl, loss_mask, self.n_out_channels)
 
                 accu_tt_loss += loss.data.item() * sum(n_frames)
                 accu_n_frames += sum(n_frames)
