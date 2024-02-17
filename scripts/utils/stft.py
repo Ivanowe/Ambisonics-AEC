@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import scipy
-
+import scipy.signal
 
 class STFT(nn.Module):
     def __init__(self, win_size=320, hop_size=160, requires_grad=False):
@@ -15,7 +15,7 @@ class STFT(nn.Module):
         self.requires_grad = requires_grad
         
         # Hamming window default? Should be Hann window imo!   
-        win = torch.from_numpy(scipy.hann(self.win_size).astype(np.float32))
+        win = torch.from_numpy(scipy.signal.hann(self.win_size).astype(np.float32))
         
         # This part is strange. Why is the window being passed through ReLU?
         # Training the window? What is the purpose of this? Default is not to
