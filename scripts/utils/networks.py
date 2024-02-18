@@ -98,7 +98,7 @@ class Net(nn.Module):
         self.conv5 = GluConv2d(in_channels=128, out_channels=256, kernel_size=(1,3), stride=(1,2))
         
         # Long short-term memory layer between encoder and decoder 
-        self.glstm = GLSTM(groups=2)
+        self.glstm = GLSTM(groups=4)
 
         # Decoder for real part 
         self.conv5_t_1 = GluConvTranspose2d(in_channels=512, out_channels=128, kernel_size=(1,3), stride=(1,2))
