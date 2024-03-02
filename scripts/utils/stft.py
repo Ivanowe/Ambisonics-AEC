@@ -1,128 +1,44 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-import scipy
-import scipy.signal
 
 class STFT(nn.Module):
-    def __init__(self, win_size=320, hop_size=160, requires_grad=False):
+    def __init__(self, win_size=320, hop_size=160):
         super(STFT, self).__init__()
 
         self.win_size = win_size
         self.hop_size = hop_size
-        self.n_overlap = self.win_size // self.hop_size
-        self.requires_grad = requires_grad
-        
-        # Hamming window default? Should be Hann window imo!
-        # win = torch.from_numpy(scipy.hamming(self.win_size).astype(np.float32))   
-        win = torch.from_numpy(scipy.signal.hann(self.win_size).astype(np.float32))
-        
-        # This part is strange. Why is the window being passed through ReLU?
-        # Training the window? What is the purpose of this? Default is not to
-        # train the window.
-        win = F.relu(win)
-        win = nn.Parameter(data=win, requires_grad=self.requires_grad)
-        self.register_parameter('win', win)
-        
-        # Fourier basis help to compute the STFT by matrix multiplication with
-        # the windowed signal.
-        fourier_basis = np.fft.fft(np.eye(self.win_size))
-        fourier_basis_r = np.real(fourier_basis).astype(np.float32)
-        fourier_basis_i = np.imag(fourier_basis).astype(np.float32)
-        
-        # Real and imaginary parts of the Fourier basis and indeces of the bins
-        # saved as buffers -> not trained
-        self.register_buffer('fourier_basis_r', torch.from_numpy(fourier_basis_r))
-        self.register_buffer('fourier_basis_i', torch.from_numpy(fourier_basis_i))
 
-        idx = torch.tensor(range(self.win_size//2-1, 0, -1), dtype=torch.long)
-        self.register_buffer('idx', idx)
-        
-        # "epsilon" -- smallest non-zero value of the data type
-        self.eps = torch.finfo(torch.float32).eps
+        # Create a Hann window
+        self.win = torch.hann_window(self.win_size, 
+                                     periodic=True, 
+                                     dtype=torch.float32)
 
-    def kernel_fw(self):
-        fourier_basis_r = torch.matmul(self.fourier_basis_r, torch.diag(self.win))
-        fourier_basis_i = torch.matmul(self.fourier_basis_i, torch.diag(self.win))
-
-        fourier_basis = torch.stack([fourier_basis_r, fourier_basis_i], dim=-1)
-        forward_basis = fourier_basis.unsqueeze(dim=1)
-
-        return forward_basis
-
-    def kernel_bw(self):
-        inv_fourier_basis_r = self.fourier_basis_r / self.win_size
-        inv_fourier_basis_i = -self.fourier_basis_i / self.win_size
-
-        inv_fourier_basis = torch.stack([inv_fourier_basis_r, inv_fourier_basis_i], dim=-1)
-        backward_basis = inv_fourier_basis.unsqueeze(dim=1)
-        return backward_basis
-
-    def window(self, n_frames):
-        assert n_frames >= 2
-        seg = sum([self.win[i*self.hop_size:(i+1)*self.hop_size] for i in range(self.n_overlap)])
-        seg = seg.unsqueeze(dim=-1).expand((self.hop_size, n_frames-self.n_overlap+1))
-        window = seg.contiguous().view(-1).contiguous()
-
-        return window
-
-    # modify to take multiple channels?
     def stft(self, sig):
-        batch_size = sig.shape[0]
-        n_samples = sig.shape[1]
+        # Use PyTorch's built-in function to compute the STFT
+        spec = torch.stft(sig, n_fft=self.win_size, 
+                          hop_length=self.hop_size, 
+                          window=self.win, 
+                          return_complex=True)
 
-        cutoff = self.win_size // 2 + 1
-
-        sig = sig.view(batch_size, 1, n_samples)
-        kernel = self.kernel_fw()
-        kernel_r = kernel[...,0]
-        kernel_i = kernel[...,1]
-        spec_r = F.conv1d(sig,
-                          kernel_r[:cutoff],
-                          stride=self.hop_size,
-                          padding=self.win_size-self.hop_size)
-        spec_i = F.conv1d(sig,
-                          kernel_i[:cutoff],
-                          stride=self.hop_size,
-                          padding=self.win_size-self.hop_size)
-        spec_r = spec_r.transpose(-1, -2).contiguous()
-        spec_i = spec_i.transpose(-1, -2).contiguous()
-        
-        # why is this calculated here?
-        mag = torch.sqrt(spec_r**2 + spec_i**2)
-        pha = torch.atan2(spec_i.data, spec_r.data)
+        # Separate the real and imaginary parts, then change the order of 
+        # the dimensions
+        spec_r = spec.real.transpose(-1, -2).contiguous()
+        spec_i = spec.imag.transpose(-1, -2).contiguous()
 
         return spec_r, spec_i
 
-    # since only one final output is desired, this function pobably does'nt need
-    # to be modified
-    def istft(self, x):
-        spec_r = x[:,0,:,:]
-        spec_i = x[:,1,:,:]
+    def istft(self, est):
+       
+        # Rearrange the dimensions of the tensor to what pytorch expects
+        est = est.permute(0, 3, 2, 1)
 
-        n_frames = spec_r.shape[1]
-
-        spec_r = torch.cat([spec_r, spec_r.index_select(dim=-1, index=self.idx)], dim=-1)
-        spec_i = torch.cat([spec_i, -spec_i.index_select(dim=-1, index=self.idx)], dim=-1)
-        spec_r = spec_r.transpose(-1, -2).contiguous()
-        spec_i = spec_i.transpose(-1, -2).contiguous()
-
-        kernel = self.kernel_bw()
-        kernel_r = kernel[...,0].transpose(0, -1)
-        kernel_i = kernel[...,1].transpose(0, -1)
-
-        sig = F.conv_transpose1d(spec_r,
-                                 kernel_r,
-                                 stride=self.hop_size,
-                                 padding=self.win_size-self.hop_size) \
-            - F.conv_transpose1d(spec_i,
-                                 kernel_i,
-                                 stride=self.hop_size,
-                                 padding=self.win_size-self.hop_size)
-        sig = sig.squeeze(dim=1)
-
-        window = self.window(n_frames)
-        sig = sig / (window + self.eps)
+        # Use PyTorch's built-in function to compute the inverse STFT
+        sig = torch.istft(est, 
+                          n_fft=self.win_size, 
+                          hop_length=self.hop_size, 
+                          window=self.win,
+                          onesided=True) # Because only positive 
+                                         # frequencies are used
 
         return sig
