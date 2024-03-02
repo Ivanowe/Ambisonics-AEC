@@ -14,7 +14,8 @@ class STFT(nn.Module):
         self.n_overlap = self.win_size // self.hop_size
         self.requires_grad = requires_grad
         
-        # Hamming window default? Should be Hann window imo!   
+        # Hamming window default? Should be Hann window imo!
+        # win = torch.from_numpy(scipy.hamming(self.win_size).astype(np.float32))   
         win = torch.from_numpy(scipy.signal.hann(self.win_size).astype(np.float32))
         
         # This part is strange. Why is the window being passed through ReLU?
@@ -122,7 +123,6 @@ class STFT(nn.Module):
         sig = sig.squeeze(dim=1)
 
         window = self.window(n_frames)
-        # + self.eps (smallest nonzero value) to avoid division by zero
         sig = sig / (window + self.eps)
 
         return sig
