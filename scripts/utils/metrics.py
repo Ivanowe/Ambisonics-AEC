@@ -43,7 +43,7 @@ class Metric(object):
             conditions = os.listdir(self.est_path)
         else:
             with open(self.tt_list, 'r') as f:
-                conditions = [t.strip().split('/')[-1].replace('.ex', '') for t in f.readlines()]
+                conditions = [t.strip().split('/')[-1].replace('.hdf5', '') for t in f.readlines()]
 
         for condition in conditions:
             mix_scores_array = []
