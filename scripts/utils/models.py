@@ -17,6 +17,8 @@ from utils.data_utils import AudioLoader
 from utils.networks import Net
 from utils.criteria import LossFunction
 
+from scipy.io.wavfile import write
+
 
 class CheckPoint(object):
     def __init__(self, ckpt_info=None, net_state_dict=None, optim_state_dict=None):
@@ -83,7 +85,8 @@ class Model(object):
         if not os.path.isdir(self.ckpt_dir):
             os.makedirs(self.ckpt_dir)
 
-        logger = getLogger(os.path.join(self.ckpt_dir, 'train.log'), log_file=True)
+        logger = getLogger(os.path.join(self.ckpt_dir, 'train.log'),
+                           log_file=True)
         
         # create data loaders for training and cross validation
         tr_loader = AudioLoader(self.tr_list, self.sample_rate, self.unit,
@@ -106,7 +109,8 @@ class Model(object):
 
         # calculate model size
         param_count = numParams(net)
-        logger.info('Trainable parameter count: {:,d} -> {:.2f} MB\n'.format(param_count, param_count*32/8/(2**20)))
+        logger.info('Trainable parameter count: {:,d} -> {:.2f} MB\n'
+                    .format(param_count, param_count*32/8/(2**20)))
 
         # net feeder
         feeder = NetFeeder(self.device, self.win_size, self.hop_size)
@@ -115,7 +119,9 @@ class Model(object):
         criterion = LossFunction()
         # same as paper already
         optimizer = Adam(net.parameters(), lr=self.lr, amsgrad=True)
-        scheduler = lr_scheduler.StepLR(optimizer, step_size=self.lr_decay_period, gamma=self.lr_decay_factor)
+        scheduler = lr_scheduler.StepLR(optimizer, 
+                                        step_size=self.lr_decay_period, 
+                                        gamma=self.lr_decay_factor)
         
         # resume model if needed
         if self.resume_model:
@@ -131,7 +137,8 @@ class Model(object):
             net.load_state_dict(state_dict)
             optimizer.load_state_dict(ckpt.optim_state_dict)
             ckpt_info = ckpt.ckpt_info
-            logger.info('model info: epoch {}, iter {}, cv_loss - {:.4f}\n'.format(ckpt.ckpt_info['cur_epoch']+1,
+            logger.info('model info: epoch {}, iter {}, cv_loss - {:.4f}\n'
+                        .format(ckpt.ckpt_info['cur_epoch']+1,
                 ckpt.ckpt_info['cur_iter']+1, ckpt.ckpt_info['cv_loss']))
         else:
             logger.info('Training from scratch...\n')
@@ -166,13 +173,18 @@ class Model(object):
                 # -> feeder needs to be modified 
                 feat, lbl = feeder(mix, sph)
                 
-                loss_mask = lossMask(shape=lbl.shape, n_frames=n_frames, device=self.device)
+                loss_mask = lossMask(shape=lbl.shape, 
+                                     n_frames=n_frames, 
+                                     device=self.device)
                 # forward + backward + optimize
                 optimizer.zero_grad()
                 with torch.enable_grad():
                     est = net(feat)
-                #loss = criterion(est, lbl, loss_mask, n_frames)
-                loss = criterion(est, lbl, loss_mask, self.n_out_channels)
+                loss = criterion(est, 
+                                 lbl, 
+                                 loss_mask, 
+                                 self.n_out_channels, 
+                                 n_frames)
                 loss.backward()
                 if self.clip_norm >= 0.0:
                     clip_grad_norm_(net.parameters(), self.clip_norm)
@@ -187,17 +199,32 @@ class Model(object):
 
                 if self.time_log:
                     with open(self.time_log, 'a+') as f:
-                        print('Epoch [{}/{}], Iter [{}], tr_loss = {:.4f} / {:.4f}, batch_time (s) = {:.4f}'.format(ckpt_info['cur_epoch']+1,
-                            self.max_n_epochs, n_iter, running_loss, accu_tr_loss / accu_n_frames, batch_time), file=f)
+                        print('Epoch [{}/{}], Iter [{}], tr_loss = {:.4f} / {:.4f}, batch_time (s) = {:.4f}'
+                              .format(ckpt_info['cur_epoch']+1,
+                            self.max_n_epochs, 
+                            n_iter, 
+                            running_loss, 
+                            accu_tr_loss / accu_n_frames, 
+                            batch_time), 
+                              file=f)
                         f.flush()
                 else:
-                    print('Epoch [{}/{}], Iter [{}], tr_loss = {:.4f} / {:.4f}, batch_time (s) = {:.4f}'.format(ckpt_info['cur_epoch']+1,
-                        self.max_n_epochs, n_iter, running_loss, accu_tr_loss / accu_n_frames, batch_time), flush=True)
+                    print('Epoch [{}/{}], Iter [{}], tr_loss = {:.4f} / {:.4f}, batch_time (s) = {:.4f}'
+                          .format(ckpt_info['cur_epoch']+1,
+                        self.max_n_epochs, 
+                        n_iter, 
+                        running_loss, 
+                        accu_tr_loss / accu_n_frames, 
+                        batch_time), 
+                          flush=True)
  
         
                 if (n_iter + 1) % self.logging_period == 0:
                     avg_tr_loss = accu_tr_loss / accu_n_frames
-                    avg_cv_loss = self.validate(net, cv_loader, criterion, feeder)
+                    avg_cv_loss = self.validate(net, 
+                                                cv_loader, 
+                                                criterion, 
+                                                feeder)
                     net.train()
                 
                     ckpt_info['cur_iter'] = n_iter
@@ -208,13 +235,22 @@ class Model(object):
                     ckpt_info['tr_loss'] = avg_tr_loss
                     ckpt_info['cv_loss'] = avg_cv_loss
                     if len(self.gpu_ids) > 1:
-                        ckpt = CheckPoint(ckpt_info, net.module.state_dict(), optimizer.state_dict())
+                        ckpt = CheckPoint(ckpt_info, 
+                                          net.module.state_dict(), 
+                                          optimizer.state_dict())
                     else:
-                        ckpt = CheckPoint(ckpt_info, net.state_dict(), optimizer.state_dict())
-                    logger.info('Saving checkpoint into {}'.format(os.path.join(self.ckpt_dir, latest_model)))
+                        ckpt = CheckPoint(ckpt_info, 
+                                          net.state_dict(), 
+                                          optimizer.state_dict())
+                    logger.info('Saving checkpoint into {}'
+                                .format(os.path.join(self.ckpt_dir, 
+                                                     latest_model)))
                     if is_best:
-                        logger.info('Saving checkpoint into {}'.format(os.path.join(self.ckpt_dir, best_model)))
-                    logger.info('Epoch [{}/{}], ( tr_loss: {:.4f} | cv_loss: {:.4f} )\n'.format(ckpt_info['cur_epoch']+1,
+                        logger.info('Saving checkpoint into {}'
+                                    .format(os.path.join(self.ckpt_dir, 
+                                                         best_model)))
+                    logger.info('Epoch [{}/{}], ( tr_loss: {:.4f} | cv_loss: {:.4f} )\n'
+                                .format(ckpt_info['cur_epoch']+1,
                         self.max_n_epochs, avg_tr_loss, avg_cv_loss))
                     
                     model_path = os.path.join(self.ckpt_dir, 'models')
@@ -225,7 +261,9 @@ class Model(object):
                               is_best,
                               os.path.join(model_path, best_model))
                     
-                    lossLog(os.path.join(self.ckpt_dir, self.loss_log), ckpt, self.logging_period)
+                    lossLog(os.path.join(self.ckpt_dir, self.loss_log), 
+                            ckpt, 
+                            self.logging_period)
             
                     accu_tr_loss = 0.
                     accu_n_frames = 0
@@ -262,11 +300,15 @@ class Model(object):
             feat, lbl = feeder(mix, sph)
             
             with torch.no_grad():
-                loss_mask = lossMask(shape=lbl.shape, n_frames=n_frames, device=self.device)
+                loss_mask = lossMask(shape=lbl.shape, 
+                                     n_frames=n_frames, 
+                                     device=self.device)
                 est = net(feat)
-                # old version kept for reference
-                # loss = criterion(est, lbl, loss_mask, n_frames)
-                loss = criterion(est, lbl, loss_mask, self.n_out_channels)
+                loss = criterion(est, 
+                                 lbl, 
+                                 loss_mask, 
+                                 self.n_out_channels, 
+                                 n_frames)
 
             accu_cv_loss += loss.data.item() * sum(n_frames)
             accu_n_frames += sum(n_frames)
@@ -291,7 +333,8 @@ class Model(object):
 
         if not os.path.isdir(self.ckpt_dir):
             os.makedirs(self.ckpt_dir)
-        logger = getLogger(os.path.join(self.ckpt_dir, 'test.log'), log_file=True)
+        logger = getLogger(os.path.join(self.ckpt_dir, 'test.log'), 
+                           log_file=True)
 
         # create a network
         net = Net()
@@ -301,7 +344,8 @@ class Model(object):
 
         # calculate model size
         param_count = numParams(net)
-        logger.info('Trainable parameter count: {:,d} -> {:.2f} MB\n'.format(param_count, param_count*32/8/(2**20)))
+        logger.info('Trainable parameter count: {:,d} -> {:.2f} MB\n'
+                    .format(param_count, param_count*32/8/(2**20)))
         
         # training criterion and optimizer
         criterion = LossFunction()
@@ -317,19 +361,29 @@ class Model(object):
         ckpt = CheckPoint()
         ckpt.load(self.model_file, self.device)
         net.load_state_dict(ckpt.net_state_dict)
-        logger.info('model info: epoch {}, iter {}, cv_loss - {:.4f}\n'.format(ckpt.ckpt_info['cur_epoch']+1,
+        logger.info('model info: epoch {}, iter {}, cv_loss - {:.4f}\n'
+                    .format(ckpt.ckpt_info['cur_epoch']+1,
             ckpt.ckpt_info['cur_iter']+1, ckpt.ckpt_info['cv_loss']))
         
         net.eval()
         for i in range(len(self.tt_list)):
             # create a data loader for testing
-            tt_loader = AudioLoader(self.tt_list[i], self.sample_rate, unit='utt',
-                                    segment_size=None, segment_shift=None,
-                                    batch_size=1, buffer_size=10,
-                                    in_norm=self.in_norm, mode='eval')
-            logger.info('[{}/{}] Estimating on {}'.format(i+1, len(self.tt_list), self.tt_list[i]))
+            tt_loader = AudioLoader(self.tt_list[i], 
+                                    self.sample_rate, 
+                                    unit='utt',
+                                    segment_size=None, 
+                                    segment_shift=None,
+                                    batch_size=1, 
+                                    buffer_size=10,
+                                    in_norm=self.in_norm, 
+                                    mode='eval')
+            logger.info('[{}/{}] Estimating on {}'
+                        .format(i+1, len(self.tt_list), self.tt_list[i]))
 
-            est_subdir = os.path.join(self.est_path, self.tt_list[i].split('/')[-1].replace('.ex', ''))
+            est_subdir = os.path.join(self.est_path, 
+                                      self.tt_list[i]
+                                      .split('/')[-1]
+                                      .replace('.hdf5', ''))
             if not os.path.isdir(est_subdir):
                 os.makedirs(est_subdir)
         
@@ -340,40 +394,67 @@ class Model(object):
                 sph = egs['sph']
                 n_samples = egs['n_samples']
 
-                n_frames = countFrames(n_samples, self.win_size, self.hop_size)
+                n_frames = countFrames(n_samples, 
+                                       self.win_size, 
+                                       self.hop_size)
                 
                 mix = mix.to(self.device)
+                
                 sph = sph.to(self.device)
 
                 feat, lbl = feeder(mix, sph)
-
+                
                 with torch.no_grad():
-                    loss_mask = lossMask(shape=lbl.shape, n_frames=n_frames, device=self.device)
+                    loss_mask = lossMask(shape=lbl.shape, 
+                                         n_frames=n_frames, 
+                                         device=self.device
+                                         )
                     est = net(feat)
-                    # old version kept for reference
-                    # loss = criterion(est, lbl, loss_mask, n_frames)
-                    loss = criterion(est, lbl, loss_mask, self.n_out_channels)
+                    loss = criterion(est,
+                                     lbl,
+                                     loss_mask,
+                                     self.n_out_channels,
+                                     n_frames)
 
                 accu_tt_loss += loss.data.item() * sum(n_frames)
                 accu_n_frames += sum(n_frames)
                 
                 sph_idl = resynthesizer(lbl, mix)
                 sph_est = resynthesizer(est, mix)
-                
+            
                 # save estimates
                 mix = mix[0].cpu().numpy()
                 sph = sph[0].cpu().numpy()
                 sph_est = sph_est[0].cpu().numpy()
                 sph_idl = sph_idl[0].cpu().numpy()
+                
                 # do not normalize!
-                # mix, sph, sph_est, sph_idl = wavNormalize(mix, sph, sph_est, sph_idl)
-                sf.write(os.path.join(est_subdir, '{}_mix.wav'.format(k)), mix, self.sample_rate)
-                sf.write(os.path.join(est_subdir, '{}_sph.wav'.format(k)), sph, self.sample_rate)
-                sf.write(os.path.join(est_subdir, '{}_sph_est.wav'.format(k)), sph_est, self.sample_rate)
+                # mix, sph, sph_est, sph_idl = wavNormalize(mix, 
+                #                                           sph, 
+                #                                           sph_est, 
+                #                                           sph_idl)
+                
+                sf.write(os.path.join(est_subdir,
+                                      '{}_mix.wav'.format(k)),
+                                      mix[0,:].T, 
+                                      self.sample_rate)
+                sf.write(os.path.join(est_subdir, 
+                                      '{}_sph.wav'.format(k)), 
+                                      sph.T, 
+                                      self.sample_rate)
+                sf.write(os.path.join(est_subdir, 
+                                      '{}_sph_est.wav'.format(k)), 
+                                      sph_est.T, 
+                                      self.sample_rate)
                 if self.write_ideal:
-                    sf.write(os.path.join(est_subdir, '{}_sph_idl.wav'.format(k)), sph_idl, self.sample_rate)
+                    sf.write(os.path.join(est_subdir, 
+                                          '{}_sph_idl.wav'.format(k)), 
+                                          sph_idl.T, 
+                                          self.sample_rate)
 
             avg_tt_loss = accu_tt_loss / accu_n_frames
             logger.info('loss: {:.4f}\n'.format(avg_tt_loss))
 
         return
+
+
