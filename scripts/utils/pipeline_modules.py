@@ -49,7 +49,7 @@ class Resynthesizer(object):
         for i in range(0, est.shape[1], 2):
             est_i = est[:, i:i+2, :, :]
             sph_est = self.stft.istft(est_i)
-            #sph_est = F.pad(sph_est, [0, mix.shape[2]-sph_est.shape[1]])
+            sph_est = F.pad(sph_est, [0, mix.shape[2]-sph_est.shape[1]])
             sph_est_list.append(sph_est)
 
         sph_est = torch.stack(sph_est_list, dim=1)
