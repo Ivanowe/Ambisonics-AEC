@@ -63,7 +63,7 @@ class PerUttLoader(object):
             else:
                 utt_eg['mix'] = utt[0]
                 utt_eg['sph'] = utt[1]
-            utt_eg['n_samples'] = utt[0].shape[0]
+            utt_eg['n_samples'] = utt[0].shape[1]
             yield utt_eg
 
 
@@ -78,8 +78,8 @@ class SegSplitter(object):
         if n_samples < self.seg_len:
             pad_size = self.seg_len - n_samples
             seg = dict()
-            seg['mix'] = np.pad(utt_eg['mix'], [(0, pad_size)])
-            seg['sph'] = np.pad(utt_eg['sph'], [(0, pad_size)])
+            seg['mix'] = np.pad(utt_eg['mix'], [(1, pad_size)])
+            seg['sph'] = np.pad(utt_eg['sph'], [(1, pad_size)])
             seg['n_samples'] = n_samples
             segs.append(seg)
         else:
@@ -105,7 +105,7 @@ class AudioLoader(object):
                  segment_shift=1.0, 
                  batch_size=4, 
                  buffer_size=16,
-                 in_norm=True,
+                 in_norm=False,
                  mode='train'):
         self.mode = mode
         assert self.mode in {'train', 'eval'}
@@ -133,11 +133,11 @@ class AudioLoader(object):
                 idx = (idx + 1) % n_batches
             if self.unit == 'utt':
                 for batch in batch_queue:
-                    sig_len = max([eg['mix'].shape[0] for eg in batch])
+                    sig_len = max([eg['mix'].shape[1] for eg in batch])
                     for i in range(len(batch)):
-                        pad_size = sig_len - batch[i]['mix'].shape[0]
-                        batch[i]['mix'] = np.pad(batch[i]['mix'], [(0, pad_size)])
-                        batch[i]['sph'] = np.pad(batch[i]['sph'], [(0, pad_size)])
+                        pad_size = sig_len - batch[i]['mix'].shape[1]
+                        batch[i]['mix'] = np.pad(batch[i]['mix'], [(1, pad_size)])
+                        batch[i]['sph'] = np.pad(batch[i]['sph'], [(1, pad_size)])
             return batch_queue
 
     def to_tensor(self, x) :
