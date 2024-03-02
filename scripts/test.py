@@ -38,7 +38,7 @@ def main():
                         default='../data/estimates',
                         help='Path to dump estimates')
     parser.add_argument('--write_ideal',
-                        default=False,
+                        default=True,
                         action='store_true',
                         help='Whether to write ideal signals (the speech signals resynthesized from the ideal training targets; ex. for time-domain enhancement, it is the same as clean speech)')
 
