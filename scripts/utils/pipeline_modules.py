@@ -12,27 +12,27 @@ class NetFeeder(object):
 
     # Now supports multi-channel input and output
     def __call__(self, mix, sph):
-        # Initialize lists to store the "features" (stft of mix) and 
-        # "labels" (stft of sph)
+    # Initialize lists to store the "features" (stft of mix) and "labels" (stft of sph)
         feat_list = []
         lbl_list = []
-        # Iterate for each channel in the input mixture and target speech each
-        # TODO: Look into parallelizing these loops eventually
-        
+
+        # Iterate for each channel in the input mixture
         for i in range(mix.shape[1]):       
             real_mix, imag_mix = self.stft.stft(mix[:, i, :])
-            feat = torch.cat([real_mix, imag_mix], dim=0)
+            # Stack the real and imaginary parts along a new dimension
+            feat = torch.stack([real_mix, imag_mix], dim=1)
             feat_list.append(feat)
 
+        # Iterate for each channel in the target speech
         for i in range(sph.shape[1]):
             real_sph, imag_sph = self.stft.stft(sph[:, i, :])
-            lbl = torch.cat([real_sph, imag_sph], dim=0)
+            # Stack the real and imaginary parts along a new dimension
+            lbl = torch.stack([real_sph, imag_sph], dim=1)
             lbl_list.append(lbl)
 
-        feat = torch.cat(feat_list, dim=0) # Interleave real and imaginary parts  
-        feat = feat.unsqueeze(0) 
-        lbl = torch.cat(lbl_list, dim=0) 
-        lbl = lbl.unsqueeze(0)  
+        # Concatenate the features and labels along the channel dimension
+        feat = torch.cat(feat_list, dim=1)
+        lbl = torch.cat(lbl_list, dim=1)
 
         return feat, lbl
 
