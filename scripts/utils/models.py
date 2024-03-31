@@ -54,6 +54,7 @@ class Model(object):
         self.hop_size = int(self.hop_len * self.sample_rate)
         
     def train(self, args):
+        os.environ['PYTORCH_MPS_HIGH_WATERMARK_RATIO'] = '0.0'
         with open(args.tr_list, 'r') as f:
             self.tr_list = [line.strip() for line in f.readlines()]
         self.tr_size = len(self.tr_list)
@@ -80,7 +81,7 @@ class Model(object):
             self.device = torch.device('cpu')
         else:
             # gpu
-            self.device = torch.device('cuda:{}'.format(self.gpu_ids[0]))
+            self.device = torch.device('mps:{}'.format(self.gpu_ids[0]))
 
         if not os.path.isdir(self.ckpt_dir):
             os.makedirs(self.ckpt_dir)
@@ -183,7 +184,6 @@ class Model(object):
                 loss = criterion(est, 
                                  lbl, 
                                  loss_mask, 
-                                 self.n_out_channels, 
                                  n_frames)
                 loss.backward()
                 if self.clip_norm >= 0.0:
@@ -307,7 +307,6 @@ class Model(object):
                 loss = criterion(est, 
                                  lbl, 
                                  loss_mask, 
-                                 self.n_out_channels, 
                                  n_frames)
 
             accu_cv_loss += loss.data.item() * sum(n_frames)
@@ -317,6 +316,7 @@ class Model(object):
         return avg_cv_loss
                 
     def test(self, args):
+        os.environ['PYTORCH_MPS_HIGH_WATERMARK_RATIO'] = '0.0'
         with open(args.tt_list, 'r') as f:
             self.tt_list = [line.strip() for line in f.readlines()]
         self.model_file = args.model_file
@@ -329,7 +329,7 @@ class Model(object):
             self.device = torch.device('cpu')
         else:
             # gpu
-            self.device = torch.device('cuda:{}'.format(self.gpu_ids[0]))
+            self.device = torch.device('mps:{}'.format(self.gpu_ids[0]))
 
         if not os.path.isdir(self.ckpt_dir):
             os.makedirs(self.ckpt_dir)
@@ -413,7 +413,6 @@ class Model(object):
                     loss = criterion(est,
                                      lbl,
                                      loss_mask,
-                                     self.n_out_channels,
                                      n_frames)
 
                 accu_tt_loss += loss.data.item() * sum(n_frames)
